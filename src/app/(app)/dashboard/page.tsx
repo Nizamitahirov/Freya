@@ -3,11 +3,13 @@
 import Link from 'next/link';
 import { useAppStore, selectBudget } from '@/stores/appStore';
 import { money } from '@/lib/format';
+import { compaRatio, bandPosition } from '@/lib/comp';
 import { Card, Stat, StatusBadge, ProgressBar, Button } from '@/components/ui/primitives';
+import { BudgetComposition, DeltaByEmployee, CompaRatioChart } from '@/components/charts/DashboardCharts';
 
 export default function DashboardPage() {
   const state = useAppStore();
-  const { employees, cycles, activeCompanyId, activeCycleId, planningItems, companies } = state;
+  const { employees, cycles, activeCompanyId, activeCycleId, planningItems, companies, grades } = state;
   const company = companies.find((c) => c.id === activeCompanyId)!;
   const cycle = cycles.find((c) => c.id === activeCycleId)!;
   const budget = selectBudget(state, cycle.structureId);
@@ -16,6 +18,16 @@ export default function DashboardPage() {
   const totalGross = roster.reduce((s, e) => s + e.currentGross, 0);
   const totalSuper = roster.reduce((s, e) => s + e.currentSuperGross, 0);
   const items = planningItems.filter((i) => i.cycleId === cycle.id);
+
+  const deltaData = items
+    .filter((i) => i.deltaGrossAnnual !== 0)
+    .map((i) => ({ name: employees.find((e) => e.id === i.employeeId)?.fullName ?? '', delta: i.deltaGrossAnnual }));
+
+  const compaData = roster.map((e) => {
+    const mid = grades.find((g) => g.id === e.gradeId)?.levels.find((l) => l.id === e.levelId)?.mid ?? e.currentGross;
+    const ratio = compaRatio(e.currentGross, mid);
+    return { name: e.fullName, ratio, position: bandPosition(ratio) };
+  });
 
   return (
     <div className="space-y-5">
@@ -39,6 +51,7 @@ export default function DashboardPage() {
                 </span>
               </div>
               <ProgressBar value={budget.utilization} status={budget.status} />
+              <BudgetComposition committed={budget.committedGross} spent={budget.spentGross} remaining={budget.remaining} />
               <div className="grid grid-cols-3 gap-3 text-center pt-2">
                 <div>
                   <div className="text-xs text-muted-foreground">Committed</div>
@@ -81,6 +94,20 @@ export default function DashboardPage() {
               </Link>
             )}
           </div>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <Card title="Δ Büdcə təsiri (əməkdaş üzrə, illik gross)">
+          <DeltaByEmployee data={deltaData} />
+        </Card>
+        <Card title="Compa-ratio (band mid-ə görə)">
+          <div className="flex gap-3 mb-2 text-xs">
+            <span className="inline-flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--color-info)' }} /> below</span>
+            <span className="inline-flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--color-success)' }} /> at</span>
+            <span className="inline-flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--color-warning)' }} /> above</span>
+          </div>
+          <CompaRatioChart data={compaData} />
         </Card>
       </div>
 
