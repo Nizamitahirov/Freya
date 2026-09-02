@@ -1,0 +1,122 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { useAppStore } from '@/stores/appStore';
+import { Select } from '@/components/ui/primitives';
+import type { Role } from '@/types';
+
+const nav = [
+  ['/dashboard', 'Dashboard', '▨'],
+  ['/planning', 'Planlaşdırma', '✎'],
+  ['/review', 'Review (HR)', '☑'],
+  ['/structure', 'Struktur', '⛬'],
+  ['/grades', 'Grade & Band', '▤'],
+  ['/market', 'Market', '◈'],
+  ['/reports', 'Hesabatlar', '⤓'],
+  ['/settings', 'Tənzimləmələr', '⚙'],
+] as const;
+
+const roles: Role[] = ['Manager', 'HRAdmin', 'HRReviewer', 'Finance', 'CompanyAdmin', 'Viewer'];
+
+export default function AppShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const [mounted, setMounted] = useState(false);
+  const role = useAppStore((s) => s.role);
+  const setRole = useAppStore((s) => s.setRole);
+  const companies = useAppStore((s) => s.companies);
+  const activeCompanyId = useAppStore((s) => s.activeCompanyId);
+  const setActiveCompany = useAppStore((s) => s.setActiveCompany);
+
+  useEffect(() => {
+    useAppStore.persist.rehydrate();
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return <div className="min-h-screen bg-background" />;
+  }
+
+  const activeCompany = companies.find((c) => c.id === activeCompanyId);
+
+  return (
+    <div className="min-h-screen flex bg-background text-foreground">
+      {/* Sidebar */}
+      <aside className="w-60 shrink-0 border-r border-border bg-card flex flex-col">
+        <div className="px-5 py-5 border-b border-border">
+          <Link href="/" className="flex items-center gap-2">
+            <span className="w-8 h-8 rounded-xl bg-primary text-primary-foreground grid place-items-center font-extrabold shadow-glow">
+              F
+            </span>
+            <span className="font-extrabold">Freya</span>
+          </Link>
+          <p className="text-xs text-muted-foreground mt-1">Compensation Planning</p>
+        </div>
+        <nav className="flex-1 p-3 space-y-1">
+          {nav.map(([href, label, icon]) => {
+            const active = pathname === href;
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={`flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition ${
+                  active
+                    ? 'bg-primary-soft text-primary'
+                    : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
+                }`}
+              >
+                <span className="w-4 text-center">{icon}</span>
+                {label}
+              </Link>
+            );
+          })}
+        </nav>
+        <div className="p-3 border-t border-border text-xs text-muted-foreground">
+          Demo mode · seed data
+        </div>
+      </aside>
+
+      {/* Main */}
+      <div className="flex-1 flex flex-col min-w-0">
+        <header className="h-16 border-b border-border bg-card flex items-center justify-between px-6 gap-4">
+          <div className="flex items-center gap-3">
+            <label className="text-xs text-muted-foreground">Şirkət</label>
+            <Select
+              value={activeCompanyId}
+              onChange={(e) => setActiveCompany(e.target.value)}
+              className="w-48"
+            >
+              {companies.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div className="flex items-center gap-3">
+            <label className="text-xs text-muted-foreground">Rol (demo)</label>
+            <Select value={role} onChange={(e) => setRole(e.target.value as Role)} className="w-40">
+              {roles.map((r) => (
+                <option key={r} value={r}>
+                  {r}
+                </option>
+              ))}
+            </Select>
+            <div className="w-9 h-9 rounded-full bg-primary-soft text-primary grid place-items-center font-bold">
+              {role[0]}
+            </div>
+          </div>
+        </header>
+
+        <main className="flex-1 p-6 overflow-x-hidden">
+          <div className="mb-1 text-xs text-muted-foreground">
+            {activeCompany?.name} · {activeCompany?.currency} · {activeCompany?.taxProfile.sector} ·{' '}
+            {activeCompany?.taxProfile.year}
+          </div>
+          {children}
+        </main>
+      </div>
+    </div>
+  );
+}

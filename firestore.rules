@@ -1,0 +1,95 @@
+rules_version = '2';
+
+// Compensation Planning Tool — multi-tenant + role-based (SRS §14).
+// Manager yalnız öz strukturunun sətirlərini oxuyur/yazır və yalnız draft/submit/withdraw.
+// Approve/reject/edit/final yalnız HR/Finance rollarına.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+    function membershipId(cid) {
+      return request.auth.uid + '_' + cid;
+    }
+    function member(cid) {
+      return signedIn() && exists(/databases/$(database)/documents/memberships/$(membershipId(cid)));
+    }
+    function roles(cid) {
+      return get(/databases/$(database)/documents/memberships/$(membershipId(cid))).data.roles;
+    }
+    function role(cid, r) {
+      return member(cid) && roles(cid).hasAny([r]);
+    }
+    function hasAnyRole(cid, rs) {
+      return member(cid) && roles(cid).hasAny(rs);
+    }
+    function inStructure(cid, sid) {
+      return sid in get(/databases/$(database)/documents/memberships/$(membershipId(cid))).data.structureIds;
+    }
+
+    match /companies/{cid} {
+      allow read: if member(cid);
+      allow create: if signedIn();
+      allow update, delete: if hasAnyRole(cid, ['CompanyAdmin', 'PlatformOwner']);
+    }
+
+    match /memberships/{mid} {
+      // Öz üzvlüyünü oxu; admin yaz.
+      allow read: if signedIn() &&
+        (mid == membershipId(resource.data.companyId) ||
+         hasAnyRole(resource.data.companyId, ['CompanyAdmin', 'PlatformOwner', 'HRAdmin']));
+      allow write: if signedIn() &&
+        hasAnyRole(request.resource.data.companyId, ['CompanyAdmin', 'PlatformOwner']);
+    }
+
+    match /structures/{id} {
+      allow read: if member(resource.data.companyId);
+      allow write: if hasAnyRole(request.resource.data.companyId, ['CompanyAdmin', 'PlatformOwner', 'HRAdmin']);
+    }
+
+    match /grades/{id} {
+      allow read: if member(resource.data.companyId);
+      allow write: if hasAnyRole(request.resource.data.companyId, ['CompanyAdmin', 'PlatformOwner', 'HRAdmin']);
+    }
+
+    match /employees/{id} {
+      allow read: if member(resource.data.companyId);
+      allow write: if hasAnyRole(request.resource.data.companyId, ['CompanyAdmin', 'PlatformOwner', 'HRAdmin']);
+    }
+
+    match /budgets/{id} {
+      allow read: if member(resource.data.companyId);
+      allow write: if hasAnyRole(request.resource.data.companyId, ['CompanyAdmin', 'PlatformOwner', 'HRAdmin', 'Finance']);
+    }
+
+    match /cycles/{id} {
+      allow read: if member(resource.data.companyId);
+      allow write: if hasAnyRole(request.resource.data.companyId, ['CompanyAdmin', 'PlatformOwner', 'HRAdmin', 'Manager', 'Finance']);
+    }
+
+    match /planningItems/{id} {
+      allow read: if member(resource.data.companyId) &&
+        (hasAnyRole(resource.data.companyId, ['HRAdmin', 'HRReviewer', 'Finance', 'CompanyAdmin']) ||
+         (role(resource.data.companyId, 'Manager') && inStructure(resource.data.companyId, resource.data.structureId)));
+
+      allow create, update: if
+        (role(request.resource.data.companyId, 'Manager')
+           && inStructure(request.resource.data.companyId, request.resource.data.structureId)
+           && request.resource.data.status in ['draft', 'submitted', 'withdrawn'])
+        || hasAnyRole(request.resource.data.companyId, ['HRAdmin', 'HRReviewer', 'CompanyAdmin']);
+    }
+
+    match /marketData/{id} {
+      allow read: if member(resource.data.companyId);
+      allow write: if hasAnyRole(request.resource.data.companyId, ['CompanyAdmin', 'PlatformOwner', 'HRAdmin']);
+    }
+
+    match /auditLog/{id} {
+      // Append-only: oxu icazəli rollara, yazı yalnız server (Admin SDK) tərəfindən.
+      allow read: if member(resource.data.companyId) &&
+        hasAnyRole(resource.data.companyId, ['CompanyAdmin', 'PlatformOwner', 'HRAdmin', 'Finance']);
+      allow write: if false;
+    }
+  }
+}
