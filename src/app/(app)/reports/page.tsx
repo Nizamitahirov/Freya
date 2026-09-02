@@ -1,18 +1,50 @@
 'use client';
 
+import { useState } from 'react';
 import { useAppStore, selectBudget } from '@/stores/appStore';
 import { money, signed } from '@/lib/format';
 import { Card, Stat, StatusBadge, Button } from '@/components/ui/primitives';
+import { exportExcel, exportPdf, type ReportData } from '@/lib/export/reports';
 
 export default function ReportsPage() {
   const state = useAppStore();
-  const { planningItems, employees, cycles, activeCycleId } = state;
+  const { planningItems, employees, cycles, activeCycleId, companies, activeCompanyId } = state;
   const cycle = cycles.find((c) => c.id === activeCycleId)!;
+  const company = companies.find((c) => c.id === activeCompanyId)!;
   const budget = selectBudget(state, cycle.structureId);
   const items = planningItems.filter((i) => i.cycleId === cycle.id);
   const empName = (id: string) => employees.find((e) => e.id === id)?.fullName ?? id;
+  const [busy, setBusy] = useState<string | null>(null);
 
   const totalDelta = items.filter((i) => i.status === 'approved').reduce((s, i) => s + i.deltaGrossAnnual, 0);
+
+  const reportData = (): ReportData => ({
+    companyName: company.name,
+    cycleName: cycle.name,
+    budget: budget
+      ? { allocated: budget.allocatedGross, committed: budget.committedGross, spent: budget.spentGross, remaining: budget.remaining }
+      : null,
+    rows: items.map((i) => ({
+      employee: empName(i.employeeId),
+      currentNet: i.currentNet,
+      newNet: i.newNet,
+      newGross: i.newGross,
+      newSuperGross: i.newSuperGross,
+      delta: i.deltaGrossAnnual,
+      reason: i.reason,
+      status: i.status,
+    })),
+  });
+
+  const run = async (kind: 'excel' | 'pdf') => {
+    setBusy(kind);
+    try {
+      if (kind === 'excel') await exportExcel(reportData());
+      else await exportPdf(reportData());
+    } finally {
+      setBusy(null);
+    }
+  };
 
   const exportCsv = () => {
     const header = 'Əməkdaş,Cari net,Yeni net,Yeni gross,Δ büdcə (il),Səbəb,Status';
@@ -32,9 +64,17 @@ export default function ReportsPage() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-extrabold">Hesabatlar</h1>
-        <Button variant="outline" onClick={exportCsv} disabled={items.length === 0}>
-          ⤓ CSV ixrac
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={exportCsv} disabled={items.length === 0}>
+            ⤓ CSV
+          </Button>
+          <Button variant="outline" onClick={() => run('excel')} disabled={items.length === 0 || busy !== null}>
+            {busy === 'excel' ? '…' : '⤓ Excel'}
+          </Button>
+          <Button variant="outline" onClick={() => run('pdf')} disabled={items.length === 0 || busy !== null}>
+            {busy === 'pdf' ? '…' : '⤓ PDF'}
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -95,7 +135,7 @@ export default function ReportsPage() {
           </table>
         </div>
         <p className="text-xs text-muted-foreground mt-3">
-          Excel (ExcelJS) və PDF (html2pdf.js) ixracı Faza 2-də. Hazırda CSV ixrac aktivdir.
+          İxrac formatları: CSV · Excel (ExcelJS) · PDF (jsPDF) — hamısı aktivdir.
         </p>
       </Card>
     </div>
