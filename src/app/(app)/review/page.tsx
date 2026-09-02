@@ -6,35 +6,43 @@ import { money, signed } from '@/lib/format';
 import { canFinalize } from '@/lib/review/workflow';
 import { Button, Card, Input, Select, StatusBadge, Stat } from '@/components/ui/primitives';
 import type { PlanningItem } from '@/types';
+import { Loading } from '@/components/ui/EmptyState';
 
 const FILTERS = ['hamısı', 'submitted', 'edited_pending', 'approved', 'rejected', 'returned'] as const;
 
 export default function ReviewPage() {
   const state = useAppStore();
   const { planningItems, employees, cycles, activeCycleId, role } = state;
-  const cycle = cycles.find((c) => c.id === activeCycleId)!;
-  const budget = selectBudget(state, cycle.structureId);
 
-  const isHR = role === 'HRAdmin' || role === 'HRReviewer' || role === 'CompanyAdmin';
-  const canFinal = role === 'HRAdmin' || role === 'Finance' || role === 'CompanyAdmin';
-
+  // Hook-lar hər render-də eyni sırada çağırılmalıdır — erkən return-dan ƏVVƏL.
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>('hamısı');
   const [selected, setSelected] = useState<string[]>([]);
   const [editing, setEditing] = useState<string | null>(null);
   const [editNet, setEditNet] = useState<number>(0);
 
-  const items = planningItems.filter((i) => i.cycleId === cycle.id);
+  const cycle = cycles.find((c) => c.id === activeCycleId) ?? cycles[0];
+  const items = useMemo(
+    () => (cycle ? planningItems.filter((i) => i.cycleId === cycle.id) : []),
+    [planningItems, cycle],
+  );
+  const summary = useMemo(() => {
+    const g = (s: string) => items.filter((i) => i.status === s).length;
+    return { approved: g('approved'), rejected: g('rejected'), returned: g('returned'), pending: g('submitted') + g('edited_pending') };
+  }, [items]);
+
+  if (!cycle) return <Loading what="Review" />;
+
+  const budget = selectBudget(state, cycle.structureId);
+
+  const isHR = role === 'HRAdmin' || role === 'HRReviewer' || role === 'CompanyAdmin';
+  const canFinal = role === 'HRAdmin' || role === 'Finance' || role === 'CompanyAdmin';
+
   const visible = items.filter((i) => (filter === 'hamısı' ? true : i.status === filter));
   const empName = (id: string) => employees.find((e) => e.id === id)?.fullName ?? id;
 
   const finalizeReady = items.length > 0 && canFinalize(items.map((i) => i.status));
   const actionable = (s: string) => s === 'submitted' || s === 'edited_pending';
   const selectable = visible.filter((i) => actionable(i.status)).map((i) => i.id);
-
-  const summary = useMemo(() => {
-    const g = (s: string) => items.filter((i) => i.status === s).length;
-    return { approved: g('approved'), rejected: g('rejected'), returned: g('returned'), pending: g('submitted') + g('edited_pending') };
-  }, [items]);
 
   if (cycle.status === 'open') {
     return (

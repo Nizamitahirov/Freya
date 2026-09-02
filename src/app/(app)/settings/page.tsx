@@ -4,11 +4,13 @@ import { useAppStore } from '@/stores/appStore';
 import { taxConfig } from '@/lib/comp';
 import { money } from '@/lib/format';
 import { Card, Input, Stat } from '@/components/ui/primitives';
+import { Loading } from '@/components/ui/EmptyState';
 
 export default function SettingsPage() {
   const state = useAppStore();
   const { companies, budgets, activeCompanyId } = state;
-  const company = companies.find((c) => c.id === activeCompanyId)!;
+  const company = companies.find((c) => c.id === activeCompanyId);
+  if (!company) return <Loading what="Tənzimləmələr" />;
   const budget = budgets.find((b) => b.companyId === activeCompanyId);
 
   return (

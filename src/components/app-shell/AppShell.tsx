@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useAppStore } from '@/stores/appStore';
 import { Select } from '@/components/ui/primitives';
+import { signOutUser } from '@/lib/firebase/auth';
+import { auth } from '@/lib/firebase/client';
 import type { Role } from '@/types';
 
 const nav = [
@@ -18,27 +20,34 @@ const nav = [
   ['/settings', 'Tənzimləmələr', '⚙'],
 ] as const;
 
-const roles: Role[] = ['Manager', 'HRAdmin', 'HRReviewer', 'Finance', 'CompanyAdmin', 'Viewer'];
-
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [mounted, setMounted] = useState(false);
+  const mode = useAppStore((s) => s.mode);
   const role = useAppStore((s) => s.role);
   const setRole = useAppStore((s) => s.setRole);
+  const availableRoles = useAppStore((s) => s.availableRoles);
   const companies = useAppStore((s) => s.companies);
   const activeCompanyId = useAppStore((s) => s.activeCompanyId);
   const setActiveCompany = useAppStore((s) => s.setActiveCompany);
+  const error = useAppStore((s) => s.error);
+  const setError = useAppStore((s) => s.setError);
+  const busy = useAppStore((s) => s.busy);
 
-  useEffect(() => {
-    useAppStore.persist.rehydrate();
-    setMounted(true);
-  }, []);
+  useEffect(() => setMounted(true), []);
 
   if (!mounted) {
     return <div className="min-h-screen bg-background" />;
   }
 
   const activeCompany = companies.find((c) => c.id === activeCompanyId);
+  const email = auth?.currentUser?.email ?? null;
+
+  const signOut = async () => {
+    await signOutUser();
+    router.replace('/login');
+  };
 
   return (
     <div className="min-h-screen flex bg-background text-foreground">
@@ -73,7 +82,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           })}
         </nav>
         <div className="p-3 border-t border-border text-xs text-muted-foreground">
-          Demo mode · seed data
+          {mode === 'live' ? (
+            <span className="inline-flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-success" />
+              Firebase · canlı
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-warning" />
+              Demo mode · seed data
+            </span>
+          )}
         </div>
       </aside>
 
@@ -93,21 +112,47 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 </option>
               ))}
             </Select>
+            {busy && <span className="text-xs text-muted-foreground">saxlanılır…</span>}
           </div>
           <div className="flex items-center gap-3">
-            <label className="text-xs text-muted-foreground">Rol (demo)</label>
+            <label className="text-xs text-muted-foreground">
+              {mode === 'live' ? 'Rol' : 'Rol (demo)'}
+            </label>
             <Select value={role} onChange={(e) => setRole(e.target.value as Role)} className="w-40">
-              {roles.map((r) => (
+              {availableRoles.map((r) => (
                 <option key={r} value={r}>
                   {r}
                 </option>
               ))}
             </Select>
-            <div className="w-9 h-9 rounded-full bg-primary-soft text-primary grid place-items-center font-bold">
-              {role[0]}
+            <div
+              className="w-9 h-9 rounded-full bg-primary-soft text-primary grid place-items-center font-bold"
+              title={email ?? role}
+            >
+              {(email ?? role)[0]?.toUpperCase()}
             </div>
+            {mode === 'live' && (
+              <button
+                onClick={signOut}
+                className="text-xs text-muted-foreground hover:text-foreground"
+              >
+                Çıxış
+              </button>
+            )}
           </div>
         </header>
+
+        {error && (
+          <div className="bg-destructive/10 border-b border-destructive/30 px-6 py-2.5 flex items-center justify-between gap-4">
+            <p className="text-sm text-destructive">{error}</p>
+            <button
+              onClick={() => setError(null)}
+              className="text-xs text-destructive/70 hover:text-destructive shrink-0"
+            >
+              bağla ✕
+            </button>
+          </div>
+        )}
 
         <main className="flex-1 p-6 overflow-x-hidden">
           <div className="mb-1 text-xs text-muted-foreground">

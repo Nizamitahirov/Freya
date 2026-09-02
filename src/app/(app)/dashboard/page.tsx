@@ -6,12 +6,14 @@ import { money } from '@/lib/format';
 import { compaRatio, bandPosition } from '@/lib/comp';
 import { Card, Stat, StatusBadge, ProgressBar, Button } from '@/components/ui/primitives';
 import { BudgetComposition, DeltaByEmployee, CompaRatioChart } from '@/components/charts/DashboardCharts';
+import { Loading } from '@/components/ui/EmptyState';
 
 export default function DashboardPage() {
   const state = useAppStore();
   const { employees, cycles, activeCompanyId, activeCycleId, planningItems, companies, grades } = state;
-  const company = companies.find((c) => c.id === activeCompanyId)!;
-  const cycle = cycles.find((c) => c.id === activeCycleId)!;
+  const company = companies.find((c) => c.id === activeCompanyId);
+  const cycle = cycles.find((c) => c.id === activeCycleId) ?? cycles[0];
+  if (!company || !cycle) return <Loading what="Dashboard" />;
   const budget = selectBudget(state, cycle.structureId);
   const roster = employees.filter((e) => e.companyId === activeCompanyId);
 

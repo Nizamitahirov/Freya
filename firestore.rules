@@ -1,8 +1,14 @@
 rules_version = '2';
 
 // Compensation Planning Tool — multi-tenant + role-based (SRS §14).
-// Manager yalnız öz strukturunun sətirlərini oxuyur/yazır və yalnız draft/submit/withdraw.
-// Approve/reject/edit/final yalnız HR/Finance rollarına.
+//
+// Prinsip:
+//  • Oxu — yalnız həmin şirkətin üzvü; Manager üçün planningItems yalnız ona təyin
+//    olunmuş strukturlar üzrə (row-level security, §3.2).
+//  • Yazı — workflow üçün kritik kolleksiyalar (planningItems, cycles, budgets,
+//    auditLog) client-dən BAĞLIDIR; onları yalnız server action-lar (Admin SDK)
+//    dəyişir, çünki status keçidləri, level max və büdcə yoxlaması serverdə aparılır
+//    (§16). Qalan kataloq kolleksiyaları rol əsasında yazıla bilər.
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -15,78 +21,91 @@ service cloud.firestore {
     function member(cid) {
       return signedIn() && exists(/databases/$(database)/documents/memberships/$(membershipId(cid)));
     }
-    function roles(cid) {
-      return get(/databases/$(database)/documents/memberships/$(membershipId(cid))).data.roles;
-    }
-    function role(cid, r) {
-      return member(cid) && roles(cid).hasAny([r]);
+    function membership(cid) {
+      return get(/databases/$(database)/documents/memberships/$(membershipId(cid))).data;
     }
     function hasAnyRole(cid, rs) {
-      return member(cid) && roles(cid).hasAny(rs);
+      return member(cid) && membership(cid).active == true && membership(cid).roles.hasAny(rs);
     }
     function inStructure(cid, sid) {
-      return sid in get(/databases/$(database)/documents/memberships/$(membershipId(cid))).data.structureIds;
+      return member(cid) && sid in membership(cid).structureIds;
+    }
+    // Kataloq kolleksiyaları üçün ümumi yazı icazəsi (create/update/delete fərqi ilə).
+    function canManage(cid) {
+      return hasAnyRole(cid, ['CompanyAdmin', 'PlatformOwner', 'HRAdmin']);
     }
 
     match /companies/{cid} {
       allow read: if member(cid);
-      allow create: if signedIn();
+      // Şirkət yaratma server action ilə gedir; burada yalnız redaktə/silmə tənzimlənir.
+      allow create: if false;
       allow update, delete: if hasAnyRole(cid, ['CompanyAdmin', 'PlatformOwner']);
     }
 
     match /memberships/{mid} {
-      // Öz üzvlüyünü oxu; admin yaz.
+      // İstifadəçi öz üzvlüklərini oxuyur (company switcher); adminlər şirkətin hamısını.
       allow read: if signedIn() &&
-        (mid == membershipId(resource.data.companyId) ||
+        (resource.data.userId == request.auth.uid ||
          hasAnyRole(resource.data.companyId, ['CompanyAdmin', 'PlatformOwner', 'HRAdmin']));
-      allow write: if signedIn() &&
-        hasAnyRole(request.resource.data.companyId, ['CompanyAdmin', 'PlatformOwner']);
+      // Rol təyini yalnız server action (Admin SDK) ilə — client-dən rol yüksəltmək olmaz.
+      allow write: if false;
     }
 
     match /structures/{id} {
       allow read: if member(resource.data.companyId);
-      allow write: if hasAnyRole(request.resource.data.companyId, ['CompanyAdmin', 'PlatformOwner', 'HRAdmin']);
+      allow create: if canManage(request.resource.data.companyId);
+      allow update: if canManage(resource.data.companyId)
+        && request.resource.data.companyId == resource.data.companyId;
+      allow delete: if canManage(resource.data.companyId);
     }
 
     match /grades/{id} {
       allow read: if member(resource.data.companyId);
-      allow write: if hasAnyRole(request.resource.data.companyId, ['CompanyAdmin', 'PlatformOwner', 'HRAdmin']);
+      allow create: if canManage(request.resource.data.companyId);
+      allow update: if canManage(resource.data.companyId)
+        && request.resource.data.companyId == resource.data.companyId;
+      allow delete: if canManage(resource.data.companyId);
     }
 
     match /employees/{id} {
       allow read: if member(resource.data.companyId);
-      allow write: if hasAnyRole(request.resource.data.companyId, ['CompanyAdmin', 'PlatformOwner', 'HRAdmin']);
-    }
-
-    match /budgets/{id} {
-      allow read: if member(resource.data.companyId);
-      allow write: if hasAnyRole(request.resource.data.companyId, ['CompanyAdmin', 'PlatformOwner', 'HRAdmin', 'Finance']);
-    }
-
-    match /cycles/{id} {
-      allow read: if member(resource.data.companyId);
-      allow write: if hasAnyRole(request.resource.data.companyId, ['CompanyAdmin', 'PlatformOwner', 'HRAdmin', 'Manager', 'Finance']);
-    }
-
-    match /planningItems/{id} {
-      allow read: if member(resource.data.companyId) &&
-        (hasAnyRole(resource.data.companyId, ['HRAdmin', 'HRReviewer', 'Finance', 'CompanyAdmin']) ||
-         (role(resource.data.companyId, 'Manager') && inStructure(resource.data.companyId, resource.data.structureId)));
-
-      allow create, update: if
-        (role(request.resource.data.companyId, 'Manager')
-           && inStructure(request.resource.data.companyId, request.resource.data.structureId)
-           && request.resource.data.status in ['draft', 'submitted', 'withdrawn'])
-        || hasAnyRole(request.resource.data.companyId, ['HRAdmin', 'HRReviewer', 'CompanyAdmin']);
+      allow create: if canManage(request.resource.data.companyId);
+      allow update: if canManage(resource.data.companyId)
+        && request.resource.data.companyId == resource.data.companyId;
+      allow delete: if canManage(resource.data.companyId);
     }
 
     match /marketData/{id} {
       allow read: if member(resource.data.companyId);
-      allow write: if hasAnyRole(request.resource.data.companyId, ['CompanyAdmin', 'PlatformOwner', 'HRAdmin']);
+      allow create: if canManage(request.resource.data.companyId);
+      allow update: if canManage(resource.data.companyId)
+        && request.resource.data.companyId == resource.data.companyId;
+      allow delete: if canManage(resource.data.companyId);
+    }
+
+    match /budgets/{id} {
+      allow read: if member(resource.data.companyId);
+      // committed/spent server tərəfindən sinxronlaşdırılır (§7.3) — client yazmır.
+      allow write: if false;
+    }
+
+    match /cycles/{id} {
+      allow read: if member(resource.data.companyId);
+      // Cycle status keçidləri yalnız server action-larda (§10.3).
+      allow write: if false;
+    }
+
+    match /planningItems/{id} {
+      // HR/Finance/Admin — şirkətin bütün sətirləri; Manager — yalnız öz strukturu (§3.2).
+      allow read: if member(resource.data.companyId) &&
+        (hasAnyRole(resource.data.companyId, ['HRAdmin', 'HRReviewer', 'Finance', 'CompanyAdmin', 'PlatformOwner']) ||
+         inStructure(resource.data.companyId, resource.data.structureId));
+      // Bütün mutasiyalar server-side validasiyadan keçir (§16).
+      allow write: if false;
     }
 
     match /auditLog/{id} {
-      // Append-only: oxu icazəli rollara, yazı yalnız server (Admin SDK) tərəfindən.
+      // Append-only: oxu icazəli rollara, yazı yalnız server (Admin SDK).
       allow read: if member(resource.data.companyId) &&
         hasAnyRole(resource.data.companyId, ['CompanyAdmin', 'PlatformOwner', 'HRAdmin', 'Finance']);
       allow write: if false;
