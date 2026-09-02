@@ -4,7 +4,7 @@ import {
   getEmployerCosts,
   solveGross,
   superGross,
-  applyMealAllowance,
+  computeIncrease,
   compaRatio,
   rangePenetration,
   bandPosition,
@@ -51,13 +51,14 @@ describe('getEmployerCosts (private 2026)', () => {
     const e = getEmployerCosts(1000, ctx);
     expect(e.dsmf).toBeCloseTo(164, 2); // 44+(1000-200)*0.15
     expect(e.medical).toBeCloseTo(20, 2); // 1000*0.02
-    expect(e.total).toBeCloseTo(184, 2);
+    expect(e.unemployment).toBeCloseTo(5, 2); // 1000*0.005 — BirCalc-da işəgötürən xərcinə daxildir
+    expect(e.total).toBeCloseTo(189, 2);
   });
 });
 
 describe('superGross', () => {
   it('gross + işəgötürən xərci', () => {
-    expect(superGross(1000, ctx)).toBeCloseTo(1184, 2);
+    expect(superGross(1000, ctx)).toBeCloseTo(1189, 2);
   });
 });
 
@@ -79,25 +80,89 @@ describe('solveGross — round-trip (SRS §11.4 acceptance)', () => {
   });
 });
 
-describe('applyMealAllowance (SRS §11.7)', () => {
-  it('limitə çatmayan artım tam yemək puluna gedir', () => {
-    const r = applyMealAllowance(0, 50, 100);
+describe('computeIncrease — BirCalc yemək pulu məntiqi (SRS §11.7)', () => {
+  it('artım limitə sığırsa gross praktiki dəyişmir, hamısı yemək puluna gedir', () => {
+    const r = computeIncrease({ currentGross: 1000, currentMeal: 0, increaseNet: 50, ctx });
     expect(r.newMeal).toBe(50);
-    expect(r.netToMeal).toBe(50);
-    expect(r.netToSalary).toBe(0);
+    expect(r.status).toBe('Gross dəyişmir');
+    expect(r.newGross).toBeCloseTo(1000, 1);
   });
 
-  it('limiti keçən artım qismən maaşa keçir', () => {
-    const r = applyMealAllowance(80, 50, 100);
+  it('yemək + artım limiti keçirsə yemək 100-ə çatdırılır, qalan grossa keçir', () => {
+    const r = computeIncrease({ currentGross: 1000, currentMeal: 50, increaseNet: 200, ctx });
     expect(r.newMeal).toBe(100);
-    expect(r.netToMeal).toBe(20);
-    expect(r.netToSalary).toBe(30);
+    expect(r.status).toBe('Yemək 100-ə çatdırıldı');
+    expect(r.newGross).toBeGreaterThan(1000);
   });
 
-  it('artım yoxdursa yemək pulu dəyişmir', () => {
-    const r = applyMealAllowance(100, 0, 100);
+  it('gross artımı minimumdan azdırsa yemək pulu azaldılır (filial 20 AZN)', () => {
+    const r = computeIncrease({
+      currentGross: 1000,
+      currentMeal: 100,
+      increaseNet: 10,
+      ctx,
+      office: 'branch',
+    });
+    expect(r.status).toContain('Gross minimumu');
+    expect(r.newGross - 1000).toBeGreaterThanOrEqual(20 - 0.01);
+    expect(r.newMeal).toBeLessThan(100);
+  });
+
+  it('baş ofisdə minimum 50 AZN-dir', () => {
+    const r = computeIncrease({
+      currentGross: 1000,
+      currentMeal: 100,
+      increaseNet: 10,
+      ctx,
+      office: 'hq',
+    });
+    expect(r.status).toContain('50');
+    expect(r.newGross - 1000).toBeGreaterThanOrEqual(50 - 0.01);
+  });
+
+  it('artım yoxdursa ümumi net qorunur', () => {
+    const r = computeIncrease({ currentGross: 1000, currentMeal: 100, increaseNet: 0, ctx });
     expect(r.newMeal).toBe(100);
-    expect(r.netToSalary).toBe(0);
+    expect(r.newTotalNet).toBeCloseTo(r.currentTotalNet, 2);
+    expect(r.status).toBe('Artım yoxdur');
+  });
+
+  it('yeni ümumi net həmişə cari + artıma bərabərdir', () => {
+    for (const inc of [0, 25, 100, 137.5, 400]) {
+      const r = computeIncrease({ currentGross: 1500, currentMeal: 40, increaseNet: inc, ctx });
+      expect(r.newTotalNet).toBeCloseTo(r.currentTotalNet + inc, 2);
+    }
+  });
+});
+
+describe('sektor fərqləri (BirCalc)', () => {
+  it('dövlət sektorunda 2026 DSMF gross×3%-dir', () => {
+    const d = getDeductions(1000, { ...ctx, sector: 'public' });
+    expect(d.dsmf).toBeCloseTo(30, 2);
+  });
+
+  it('əlavə iş yerində ilk pillə 3%-dir (güzəştsiz)', () => {
+    const d = getDeductions(300, { ...ctx, workplace: 'secondary' });
+    // taxable = 300 - 200 = 100 → 100 * 0.03 = 3
+    expect(d.tax).toBeCloseTo(3, 2);
+  });
+
+  it('texnoparkda gəlir vergisi 5%-dir', () => {
+    const d = getDeductions(1000, { ...ctx, sector: 'texnopark' });
+    // (1000 - 200) * 0.05 = 40
+    expect(d.tax).toBeCloseTo(40, 2);
+  });
+
+  it('işəgötürən xərcinə işsizlik sığortası (0.5%) daxildir', () => {
+    const c = getEmployerCosts(1000, ctx);
+    expect(c.unemployment).toBeCloseTo(5, 2);
+    expect(c.total).toBeCloseTo(c.dsmf + c.medical + c.unemployment, 2);
+  });
+
+  it('texnoparkda işəgötürən DSMF yoxdur', () => {
+    const c = getEmployerCosts(1000, { ...ctx, sector: 'texnopark' });
+    expect(c.dsmf).toBe(0);
+    expect(c.total).toBeCloseTo(5 + 20, 2);
   });
 });
 

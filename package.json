@@ -18,7 +18,8 @@
     "smoke": "node --conditions=react-server --import tsx -r tsconfig-paths/register scripts/smoke.ts",
     "rules:test": "node --conditions=react-server --import tsx -r tsconfig-paths/register scripts/rules-test.ts",
     "e2e": "node --conditions=react-server --import tsx -r tsconfig-paths/register scripts/e2e.ts",
-    "auth:domain": "node scripts/auth-domain.mjs"
+    "auth:domain": "node scripts/auth-domain.mjs",
+    "parity": "node --conditions=react-server --import tsx -r tsconfig-paths/register scripts/parity.ts"
   },
   "dependencies": {
     "exceljs": "^4.4.0",

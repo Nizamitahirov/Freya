@@ -107,6 +107,7 @@ export function buildStarterDataset(opts: StarterOptions): StarterDataset {
           currentMeal: e.meal,
           currency,
           ctx: { sector, workplace: 'main', benefit: 200, unionPct: 0 },
+          office: 'hq' as const,
           effectiveDate: `${year}-01-01`,
         };
       })

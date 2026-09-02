@@ -140,6 +140,8 @@ export const employeeSchema = z.object({
   currentMeal: z.number().nonnegative().default(0),
   currency: z.string().default('AZN'),
   ctx: compContextSchema,
+  /** Baş ofis / filial — minimum gross artım fərqi üçün (BirCalc `isHead`, SRS §11.7). */
+  office: z.enum(['hq', 'branch']).default('branch'),
   effectiveDate: z.string(), // ISO
 });
 export type Employee = z.infer<typeof employeeSchema>;

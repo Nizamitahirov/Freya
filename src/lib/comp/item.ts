@@ -53,6 +53,7 @@ export function computePlanningItem(
     currentMeal: emp.currentMeal,
     ctx,
     mealLimit: company.mealLimit,
+    office: emp.office,
     effectiveMonths,
   });
 

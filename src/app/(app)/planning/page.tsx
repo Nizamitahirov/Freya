@@ -166,6 +166,7 @@ function PlanningRow({
         currentMeal: emp.currentMeal,
         ctx,
         mealLimit,
+        office: emp.office,
         effectiveMonths: monthsToYearEnd(`${cycleYear}-01-01`, cycleYear),
       }),
     [mode, value, emp, mealLimit, cycleYear, taxYear],
@@ -209,7 +210,12 @@ function PlanningRow({
       </td>
       <td className="px-4 py-3 text-right mono">{money(shown.newNet)}</td>
       <td className="px-4 py-3 text-right mono">{money(shown.newGross)}</td>
-      <td className="px-4 py-3 text-right mono">{money(shown.newMeal)}</td>
+      <td className="px-4 py-3 text-right mono" title={'status' in shown ? shown.status : undefined}>
+        {money(shown.newMeal)}
+        {'status' in shown && shown.status && shown.status !== 'Artım yoxdur' && (
+          <div className="text-[10px] text-muted-foreground font-sans">{shown.status}</div>
+        )}
+      </td>
       <td className={`px-4 py-3 text-right mono ${deltaColor}`}>{signed(shown.deltaGrossAnnual)}</td>
       <td className="px-4 py-3">
         {bandCheck.level === 'error' ? (

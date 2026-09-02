@@ -308,6 +308,8 @@ export const demoEmployees: Employee[] = TEAMS.flatMap((team) =>
         benefit: 200,
         unionPct: seat.union ?? 0,
       },
+      // Baş ofis komandaları üçün minimum gross artımı 50 AZN, filial üçün 20 (BirCalc).
+      office: team.id === 'team-sales' ? 'branch' : 'hq',
       effectiveDate: `${YEAR}-01-01`,
     };
   }),
