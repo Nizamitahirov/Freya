@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { signInEmail, signUpEmail, signInGoogle } from '@/lib/firebase/auth';
+import { auth, isFirebaseReady } from '@/lib/firebase/client';
 import { Button, Card, Input } from '@/components/ui/primitives';
 
 export default function LoginPage() {
@@ -13,6 +14,15 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+
+  // Artıq daxil olubsa birbaşa dashboard-a (kök səhifə də bura yönləndirir).
+  useEffect(() => {
+    if (!isFirebaseReady() || !auth) return;
+    const unsub = auth.onAuthStateChanged((u) => {
+      if (u) router.replace('/dashboard');
+    });
+    return () => unsub();
+  }, [router]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,7 +98,7 @@ export default function LoginPage() {
       </Card>
 
       <Link href="/dashboard" className="block text-center mt-4 text-sm text-primary font-semibold">
-        Demo rejiminə keç (Firebase olmadan) →
+        Demo rejimi (Firebase olmadan) →
       </Link>
     </div>
   );

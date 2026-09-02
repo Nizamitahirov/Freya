@@ -17,6 +17,7 @@ import {
   requireRole,
   verifyToken,
 } from '@/lib/server/session';
+import { z } from 'zod';
 import type { Membership } from '@/types';
 
 type Result<T = undefined> = { ok: true; data?: T } | { ok: false; error: string };
@@ -151,6 +152,73 @@ export async function setBudgetAction(idToken: string, raw: unknown): Promise<Re
       after: { allocatedGross: input.allocatedGross },
     });
 
+    return { ok: true };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+/** Şirkətin üzvləri (rol idarəetməsi ekranı üçün) — SRS §3. */
+export async function listMembersAction(
+  idToken: string,
+  raw: unknown,
+): Promise<
+  | { ok: true; data: { userId: string; email: string; roles: string[]; structureIds: string[]; active: boolean }[] }
+  | { ok: false; error: string }
+> {
+  try {
+    const input = z.object({ companyId: z.string().min(1) }).parse(raw);
+    const session = await requireMember(idToken, input.companyId);
+    requireRole(session, ['CompanyAdmin', 'PlatformOwner', 'HRAdmin'], 'Üzv siyahısı');
+
+    const snap = await adminDb()
+      .collection('memberships')
+      .where('companyId', '==', input.companyId)
+      .get();
+
+    const rows = await Promise.all(
+      snap.docs.map(async (d) => {
+        const m = d.data() as Membership;
+        let email = m.userId;
+        try {
+          email = (await adminAuth().getUser(m.userId)).email ?? m.userId;
+        } catch {
+          /* silinmiş istifadəçi — uid göstərilir */
+        }
+        return {
+          userId: m.userId,
+          email,
+          roles: m.roles as string[],
+          structureIds: m.structureIds,
+          active: m.active,
+        };
+      }),
+    );
+    return { ok: true, data: rows };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+/** Üzvlüyü deaktiv/aktiv edir. */
+export async function setMemberActiveAction(idToken: string, raw: unknown): Promise<Result> {
+  try {
+    const input = z
+      .object({ companyId: z.string().min(1), userId: z.string().min(1), active: z.boolean() })
+      .parse(raw);
+    const session = await requireMember(idToken, input.companyId);
+    requireRole(session, ['CompanyAdmin', 'PlatformOwner'], 'Üzvlüyün deaktivləşdirilməsi');
+    if (input.userId === session.uid) throw new ActionError('Öz üzvlüyünüzü dəyişə bilməzsiniz.');
+
+    const id = membershipId(input.userId, input.companyId);
+    await adminDb().collection('memberships').doc(id).update({ active: input.active });
+    await writeAudit(session, {
+      entity: 'membership',
+      entityId: id,
+      action: input.active ? 'activate' : 'deactivate',
+      before: null,
+      after: { active: input.active },
+    });
     return { ok: true };
   } catch (err) {
     return fail(err);

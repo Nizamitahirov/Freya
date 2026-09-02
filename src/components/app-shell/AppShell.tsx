@@ -17,6 +17,7 @@ const nav = [
   ['/grades', 'Grade & Band', '▤'],
   ['/market', 'Market', '◈'],
   ['/reports', 'Hesabatlar', '⤓'],
+  ['/users', 'İstifadəçilər', '☺'],
   ['/settings', 'Tənzimləmələr', '⚙'],
 ] as const;
 
@@ -58,7 +59,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       {/* Sidebar */}
       <aside className="w-60 shrink-0 border-r border-border bg-card flex flex-col">
         <div className="px-5 py-5 border-b border-border">
-          <Link href="/" className="flex items-center gap-2">
+          <Link href="/dashboard" className="flex items-center gap-2">
             <span className="w-8 h-8 rounded-xl bg-primary text-primary-foreground grid place-items-center font-extrabold shadow-glow">
               F
             </span>
