@@ -1,15 +1,32 @@
 rules_version = '2';
 
 // Market data (CSV/XLSX) yüklənməsi (SRS §12) — şirkət-izolyasiyalı.
+// Giriş Firestore-dakı üzvlüklə yoxlanılır: yalnız həmin şirkətin üzvü fayla toxuna bilər.
 service firebase.storage {
   match /b/{bucket}/o {
+    function membership(companyId) {
+      return firestore.get(
+        /databases/(default)/documents/memberships/$(request.auth.uid + '_' + companyId)
+      ).data;
+    }
+    function isMember(companyId) {
+      return request.auth != null &&
+        firestore.exists(
+          /databases/(default)/documents/memberships/$(request.auth.uid + '_' + companyId)
+        ) &&
+        membership(companyId).active == true;
+    }
+    function canUpload(companyId) {
+      return isMember(companyId) &&
+        membership(companyId).roles.hasAny(['CompanyAdmin', 'PlatformOwner', 'HRAdmin']);
+    }
+
     match /companies/{companyId}/market/{fileName} {
-      allow read: if request.auth != null;
-      // Yükləmə yalnız autentifikasiya olunmuş istifadəçilərə; rol yoxlaması
-      // server (Admin SDK) tərəfində parse mərhələsində aparılır.
-      allow write: if request.auth != null
+      allow read: if isMember(companyId);
+      allow write: if canUpload(companyId)
         && request.resource.size < 10 * 1024 * 1024
         && request.resource.contentType.matches('text/.*|application/.*sheet.*|application/vnd.ms-excel');
+      allow delete: if canUpload(companyId);
     }
   }
 }

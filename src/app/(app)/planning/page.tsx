@@ -7,6 +7,7 @@ import { money, signed } from '@/lib/format';
 import { monthsToYearEnd } from '@/lib/format';
 import { Button, Card, Input, Select, StatusBadge, ProgressBar, Stat } from '@/components/ui/primitives';
 import type { Employee, PlanningItem } from '@/types';
+import { Loading } from '@/components/ui/EmptyState';
 
 const REASONS: PlanningItem['reason'][] = [
   'merit',
@@ -19,8 +20,9 @@ const REASONS: PlanningItem['reason'][] = [
 export default function PlanningPage() {
   const state = useAppStore();
   const { employees, cycles, activeCycleId, activeCompanyId, companies, planningItems, role } = state;
-  const cycle = cycles.find((c) => c.id === activeCycleId)!;
-  const company = companies.find((c) => c.id === activeCompanyId)!;
+  const cycle = cycles.find((c) => c.id === activeCycleId) ?? cycles[0];
+  const company = companies.find((c) => c.id === activeCompanyId);
+  if (!company || !cycle) return <Loading what="Planlaşdırma" />;
   const budget = selectBudget(state, cycle.structureId);
   const roster = employees.filter((e) => e.companyId === activeCompanyId);
 

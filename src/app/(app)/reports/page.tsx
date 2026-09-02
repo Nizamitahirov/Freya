@@ -5,16 +5,19 @@ import { useAppStore, selectBudget } from '@/stores/appStore';
 import { money, signed } from '@/lib/format';
 import { Card, Stat, StatusBadge, Button } from '@/components/ui/primitives';
 import { exportExcel, exportPdf, type ReportData } from '@/lib/export/reports';
+import { Loading } from '@/components/ui/EmptyState';
 
 export default function ReportsPage() {
   const state = useAppStore();
   const { planningItems, employees, cycles, activeCycleId, companies, activeCompanyId } = state;
-  const cycle = cycles.find((c) => c.id === activeCycleId)!;
-  const company = companies.find((c) => c.id === activeCompanyId)!;
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const cycle = cycles.find((c) => c.id === activeCycleId) ?? cycles[0];
+  const company = companies.find((c) => c.id === activeCompanyId);
+  if (!company || !cycle) return <Loading what="Hesabatlar" />;
   const budget = selectBudget(state, cycle.structureId);
   const items = planningItems.filter((i) => i.cycleId === cycle.id);
   const empName = (id: string) => employees.find((e) => e.id === id)?.fullName ?? id;
-  const [busy, setBusy] = useState<string | null>(null);
 
   const totalDelta = items.filter((i) => i.status === 'approved').reduce((s, i) => s + i.deltaGrossAnnual, 0);
 

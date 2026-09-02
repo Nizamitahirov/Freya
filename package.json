@@ -11,7 +11,13 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "seed": "tsx -r tsconfig-paths/register scripts/seed.ts"
+    "seed": "tsx -r tsconfig-paths/register scripts/seed.ts",
+    "rules:deploy": "node scripts/deploy-rules.mjs",
+    "auth:setup": "node scripts/auth-setup.mjs",
+    "grant": "tsx -r tsconfig-paths/register scripts/grant.ts",
+    "smoke": "node --conditions=react-server --import tsx -r tsconfig-paths/register scripts/smoke.ts",
+    "rules:test": "node --conditions=react-server --import tsx -r tsconfig-paths/register scripts/rules-test.ts",
+    "e2e": "node --conditions=react-server --import tsx -r tsconfig-paths/register scripts/e2e.ts"
   },
   "dependencies": {
     "exceljs": "^4.4.0",

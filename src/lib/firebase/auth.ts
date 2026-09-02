@@ -37,3 +37,14 @@ export async function signOutUser() {
   const { signOut } = await import('firebase/auth');
   return signOut(auth);
 }
+
+/**
+ * Server action-lara göndəriləcək ID token (SRS §16 — serverdə verifyIdToken ilə yoxlanılır).
+ * Token vaxtı bitibsə Firebase SDK avtomatik yeniləyir.
+ */
+export async function currentIdToken(): Promise<string> {
+  if (!auth?.currentUser) {
+    throw new Error('Sessiya tapılmadı — yenidən daxil olun.');
+  }
+  return auth.currentUser.getIdToken();
+}
