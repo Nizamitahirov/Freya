@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import CompCalculator from '@/components/CompCalculator';
 
 const features = [
@@ -42,6 +43,22 @@ export default function Home() {
           hesablaması və çoxpilləli HR review dövrü. Vergi motoru Azərbaycan qanunvericiliyinə
           (13.02.2026) uyğundur.
         </p>
+        <div style={{ marginTop: '1.5rem' }}>
+          <Link
+            href="/dashboard"
+            style={{
+              display: 'inline-block',
+              padding: '0.7rem 1.6rem',
+              borderRadius: 'var(--radius)',
+              background: 'var(--color-primary)',
+              color: 'var(--color-primary-foreground)',
+              fontWeight: 700,
+              boxShadow: 'var(--shadow-glow)',
+            }}
+          >
+            Tətbiqə keç →
+          </Link>
+        </div>
       </header>
 
       <section style={{ marginBottom: '3rem' }}>
