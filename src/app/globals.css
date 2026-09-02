@@ -1,0 +1,68 @@
+@import 'tailwindcss';
+
+/*
+ * Dizayn tokenləri — Gradex dizayn sistemindən (SRS §15.2).
+ * Periwinkle #5B5BF5, yumşaq layered kölgələr, 12px radius, birinci-dərəcəli dark mode.
+ */
+@theme {
+  --radius: 0.75rem;
+
+  --color-background: #f7f8fc;
+  --color-foreground: #0f1129;
+  --color-card: #ffffff;
+  --color-primary: #5b5bf5;
+  --color-primary-foreground: #ffffff;
+  --color-primary-soft: #eeeefe;
+  --color-secondary: #f2f3f8;
+  --color-muted: #f2f3f8;
+  --color-muted-foreground: #6b6f8a;
+  --color-destructive: #ff6a6a;
+  --color-success: #16c098;
+  --color-warning: #f5a524;
+  --color-info: #4dabf7;
+  --color-border: #e7e9f2;
+  --color-ring: #5b5bf5;
+
+  --font-sans: 'Montserrat', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, 'SFMono-Regular', monospace;
+
+  --shadow-card: 0 4px 16px -4px rgba(15, 17, 41, 0.08), 0 2px 4px -2px rgba(15, 17, 41, 0.04);
+  --shadow-glow: 0 8px 24px -6px rgba(91, 91, 245, 0.35);
+}
+
+:root {
+  --background: var(--color-background);
+  --foreground: var(--color-foreground);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0e1024;
+    --foreground: #eaeaf5;
+    --color-background: #0e1024;
+    --color-foreground: #eaeaf5;
+    --color-card: #181b33;
+    --color-primary: #6e6cff;
+    --color-primary-soft: #23264a;
+    --color-secondary: #1c1f3a;
+    --color-muted: #1c1f3a;
+    --color-muted-foreground: #9a9fc0;
+    --color-border: #262a4a;
+  }
+}
+
+* {
+  border-color: var(--color-border);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
