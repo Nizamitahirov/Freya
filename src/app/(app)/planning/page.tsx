@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useAppStore, selectBudget, type PlanPatch } from '@/stores/appStore';
+import { useAppStore, selectBudget, selectStructureSubtree, type PlanPatch } from '@/stores/appStore';
 import { planCompensation, validateAgainstBand, type CompContext } from '@/lib/comp';
 import { money, signed } from '@/lib/format';
 import { monthsToYearEnd } from '@/lib/format';
@@ -24,7 +24,12 @@ export default function PlanningPage() {
   const company = companies.find((c) => c.id === activeCompanyId);
   if (!company || !cycle) return <Loading what="Planlaşdırma" />;
   const budget = selectBudget(state, cycle.structureId);
-  const roster = employees.filter((e) => e.companyId === activeCompanyId);
+  // Dövr struktura bağlıdır (SRS §10) — cədvəldə yalnız həmin strukturun (və alt
+  // strukturlarının) əməkdaşları göstərilir.
+  const scope = selectStructureSubtree(state, cycle.structureId);
+  const roster = employees.filter(
+    (e) => e.companyId === activeCompanyId && scope.includes(e.positionId),
+  );
 
   const canEdit = role === 'Manager' || role === 'HRAdmin' || role === 'CompanyAdmin';
   const cycleLocked = cycle.status === 'finalized';

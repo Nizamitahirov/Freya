@@ -31,6 +31,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const companies = useAppStore((s) => s.companies);
   const activeCompanyId = useAppStore((s) => s.activeCompanyId);
   const setActiveCompany = useAppStore((s) => s.setActiveCompany);
+  const cycles = useAppStore((s) => s.cycles);
+  const activeCycleId = useAppStore((s) => s.activeCycleId);
+  const setActiveCycle = useAppStore((s) => s.setActiveCycle);
   const error = useAppStore((s) => s.error);
   const setError = useAppStore((s) => s.setError);
   const busy = useAppStore((s) => s.busy);
@@ -42,6 +45,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   const activeCompany = companies.find((c) => c.id === activeCompanyId);
+  const companyCycles = cycles.filter((c) => c.companyId === activeCompanyId);
   const email = auth?.currentUser?.email ?? null;
 
   const signOut = async () => {
@@ -112,6 +116,22 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 </option>
               ))}
             </Select>
+            {companyCycles.length > 0 && (
+              <>
+                <label className="text-xs text-muted-foreground ml-2">Dövr</label>
+                <Select
+                  value={activeCycleId}
+                  onChange={(e) => setActiveCycle(e.target.value)}
+                  className="w-64"
+                >
+                  {companyCycles.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </Select>
+              </>
+            )}
             {busy && <span className="text-xs text-muted-foreground">saxlanılır…</span>}
           </div>
           <div className="flex items-center gap-3">

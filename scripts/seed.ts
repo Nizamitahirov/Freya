@@ -31,21 +31,38 @@ async function main() {
     : initializeApp({ credential: cert({ projectId, clientEmail, privateKey }) });
   const db = getFirestore(app);
 
-  const { company, structures, grades, employees, budget, cycle } = demoDataset;
+  const { company, structures, grades, employees, budgets, cycles } = demoDataset;
 
-  const batch = db.batch();
-  batch.set(db.collection('companies').doc(company.id), company);
-  batch.set(db.collection('budgets').doc(budget.id), budget);
-  batch.set(db.collection('cycles').doc(cycle.id), cycle);
-  for (const s of structures) batch.set(db.collection('structures').doc(s.id), s);
-  for (const g of grades) batch.set(db.collection('grades').doc(g.id), g);
-  for (const e of employees) batch.set(db.collection('employees').doc(e.id), e);
+  // Köhnə demo sənədlərini təmizlə (yenidən seed edildikdə qalıq qalmasın).
+  // planningItems / auditLog toxunulmur — onlar iş datasıdır.
+  for (const name of ['structures', 'grades', 'employees', 'budgets', 'cycles']) {
+    const stale = await db.collection(name).where('companyId', '==', company.id).get();
+    for (let i = 0; i < stale.docs.length; i += 400) {
+      const batch = db.batch();
+      stale.docs.slice(i, i + 400).forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+    }
+  }
 
-  await batch.commit();
+  const docs: [string, { id: string }][] = [
+    ['companies', company],
+    ...structures.map((s) => ['structures', s] as [string, { id: string }]),
+    ...grades.map((g) => ['grades', g] as [string, { id: string }]),
+    ...employees.map((e) => ['employees', e] as [string, { id: string }]),
+    ...budgets.map((b) => ['budgets', b] as [string, { id: string }]),
+    ...cycles.map((c) => ['cycles', c] as [string, { id: string }]),
+  ];
+
+  for (let i = 0; i < docs.length; i += 400) {
+    const batch = db.batch();
+    docs.slice(i, i + 400).forEach(([col, doc]) => batch.set(db.collection(col).doc(doc.id), doc));
+    await batch.commit();
+  }
 
   console.log(`✓ Firestore seed tamamlandı (project: ${projectId})`);
   console.log(
-    `  companies:1 budgets:1 cycles:1 structures:${structures.length} grades:${grades.length} employees:${employees.length}`,
+    `  companies:1 structures:${structures.length} grades:${grades.length} ` +
+      `employees:${employees.length} budgets:${budgets.length} cycles:${cycles.length}`,
   );
 }
 

@@ -130,12 +130,12 @@ const initial = {
   structures: demoDataset.structures,
   grades: demoDataset.grades,
   employees: demoDataset.employees,
-  budgets: [demoDataset.budget],
-  cycles: [demoDataset.cycle],
+  budgets: demoDataset.budgets,
+  cycles: demoDataset.cycles,
   planningItems: [] as PlanningItem[],
   marketData: [] as MarketData[],
   activeCompanyId: demoDataset.company.id,
-  activeCycleId: demoDataset.cycle.id,
+  activeCycleId: demoDataset.cycles[0].id,
   role: 'Manager' as Role,
 };
 
@@ -418,6 +418,17 @@ export function selectBand(state: AppState, gradeId: string, levelId: string) {
   const grade = state.grades.find((g) => g.id === gradeId);
   const level = grade?.levels.find((l) => l.id === levelId);
   return level ? { min: level.min, mid: level.mid, max: level.max, name: level.name } : null;
+}
+
+/** Verilmiş strukturun özü + bütün alt strukturları (SRS §5.1 iyerarxiya). */
+export function selectStructureSubtree(state: AppState, rootId: string): string[] {
+  const ids = [rootId];
+  for (let i = 0; i < ids.length; i++) {
+    for (const s of state.structures) {
+      if (s.parentId === ids[i] && !ids.includes(s.id)) ids.push(s.id);
+    }
+  }
+  return ids;
 }
 
 /** Aktiv dövr — seçilməyibsə şirkətin ilk dövrü. */
