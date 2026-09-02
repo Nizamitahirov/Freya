@@ -64,6 +64,8 @@ localStorage-dakı seed data ilə işləyir.
 ```bash
 npm run rules:deploy     # firestore.rules + storage.rules → Firebase (firebase-tools tələb etmir)
 npm run auth:setup       # Email/Password provayderini aktivləşdirir
+npm run auth:domain      # authorized domains siyahısı
+npm run auth:domain -- freya.vercel.app          # domen əlavə edir (OAuth/popup üçün)
 npm run seed             # demo dataseti Firestore-a yazır (opsional)
 npm run grant -- <email> [companyId] [rol,rol]   # mövcud şirkətə rol təyini
 ```
@@ -73,6 +75,32 @@ npm run grant -- <email> [companyId] [rol,rol]   # mövcud şirkətə rol təyin
 mövcud şirkətə qoşulmaq üçün `npm run grant` istifadə edin.
 
 Google ilə giriş üçün: Firebase Console → Authentication → Sign-in method → Google.
+
+## Vercel-ə deploy
+
+Vercel → Project → Settings → Environment Variables (Production + Preview):
+
+| Dəyişən | Mənbə |
+|---|---|
+| `NEXT_PUBLIC_FIREBASE_API_KEY` | Firebase Console → Project settings → Web app config |
+| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | eyni yer |
+| `NEXT_PUBLIC_FIREBASE_PROJECT_ID` | eyni yer |
+| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` | eyni yer |
+| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | eyni yer |
+| `NEXT_PUBLIC_FIREBASE_APP_ID` | eyni yer |
+| `NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID` | eyni yer (opsional) |
+| `NEXT_PUBLIC_DEMO_MODE` | `false` |
+| `FIREBASE_PROJECT_ID` | service account JSON → `project_id` |
+| `FIREBASE_CLIENT_EMAIL` | service account JSON → `client_email` |
+| `FIREBASE_PRIVATE_KEY` | service account JSON → `private_key` (çox sətirli yapışdırmaq olar) |
+
+Sonra Vercel domenini Firebase-ə əlavə edin (Google/popup girişi üçün):
+
+```bash
+npm run auth:domain -- <layihə>.vercel.app
+```
+
+`NEXT_PUBLIC_*` dəyişənləri **build zamanı** oxunur — dəyişdikdən sonra yenidən deploy edin.
 
 ## Yoxlama
 
