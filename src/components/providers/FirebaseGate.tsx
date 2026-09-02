@@ -16,6 +16,7 @@ import type { User } from 'firebase/auth';
 import { auth, isFirebaseReady } from '@/lib/firebase/client';
 import { fetchCompanies, fetchMemberships, subscribeCompanyData } from '@/lib/firebase/db';
 import { useAppStore } from '@/stores/appStore';
+import { claimBootstrapAction } from '@/app/actions/company';
 import type { Membership } from '@/types';
 import Onboarding from './Onboarding';
 
@@ -37,7 +38,15 @@ export default function FirebaseGate({ children }: { children: React.ReactNode }
   /** Üzvlükləri oxuyub store-u live rejimə keçirir. */
   const bootstrap = useCallback(
     async (u: User) => {
-      const list = await fetchMemberships(u.uid);
+      let list = await fetchMemberships(u.uid);
+
+      // İlk admin təyinatı: BOOTSTRAP_ADMIN_EMAILS siyahısındakı istifadəçi mövcud
+      // şirkətə avtomatik bağlanır (SRS §4) — əks halda onboarding göstərilir.
+      if (list.length === 0) {
+        const claimed = await claimBootstrapAction(await u.getIdToken());
+        if (claimed.ok) list = await fetchMemberships(u.uid);
+      }
+
       setMemberships(list);
       if (list.length === 0) {
         setPhase('onboarding');

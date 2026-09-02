@@ -224,3 +224,63 @@ export async function setMemberActiveAction(idToken: string, raw: unknown): Prom
     return fail(err);
   }
 }
+
+/**
+ * İlk admin təyinatı (bootstrap) — SRS §4.
+ *
+ * `BOOTSTRAP_ADMIN_EMAILS` (vergüllə ayrılmış) siyahısındakı e-poçtla qeydiyyatdan keçən
+ * istifadəçi mövcud şirkətə avtomatik CompanyAdmin + HRAdmin + Manager + Finance kimi
+ * bağlanır. Siyahı boş olduqda heç nə etmir — yəni default halda bu qapı bağlıdır.
+ * Şirkət: `BOOTSTRAP_COMPANY_ID` və ya Firestore-dakı ilk şirkət.
+ */
+export async function claimBootstrapAction(idToken: string): Promise<Result<string>> {
+  try {
+    const { uid, email } = await verifyToken(idToken);
+    const allowed = (process.env.BOOTSTRAP_ADMIN_EMAILS ?? '')
+      .split(',')
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean);
+    if (allowed.length === 0 || !email || !allowed.includes(email.toLowerCase())) {
+      return { ok: false, error: 'Bootstrap icazəsi yoxdur.' };
+    }
+
+    const db = adminDb();
+    let companyId = process.env.BOOTSTRAP_COMPANY_ID;
+    if (!companyId) {
+      const companies = await db.collection('companies').limit(1).get();
+      if (companies.empty) return { ok: false, error: 'Firestore-da şirkət yoxdur.' };
+      companyId = companies.docs[0].id;
+    }
+
+    const existing = await db.collection('memberships').doc(membershipId(uid, companyId)).get();
+    if (existing.exists) return { ok: true, data: companyId };
+
+    const structuresSnap = await db
+      .collection('structures')
+      .where('companyId', '==', companyId)
+      .get();
+
+    const membership: Membership = {
+      id: membershipId(uid, companyId),
+      userId: uid,
+      companyId,
+      roles: ['CompanyAdmin', 'HRAdmin', 'Manager', 'Finance'],
+      structureIds: structuresSnap.docs.map((d) => d.id),
+      active: true,
+    };
+    await db.collection('memberships').doc(membership.id).set(membership);
+    await writeAudit(
+      { uid, email, companyId, roles: membership.roles, structureIds: membership.structureIds },
+      {
+        entity: 'membership',
+        entityId: membership.id,
+        action: 'bootstrapAdmin',
+        before: null,
+        after: membership,
+      },
+    );
+    return { ok: true, data: companyId };
+  } catch (err) {
+    return fail(err);
+  }
+}
