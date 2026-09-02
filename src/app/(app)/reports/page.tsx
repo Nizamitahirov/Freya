@@ -86,7 +86,7 @@ export default function ReportsPage() {
 
       <Card title="Büdcə icra hesabatı">
         {budget ? (
-          <table className="w-full text-sm">
+          <table className="tbl">
             <tbody>
               {[
                 ['Ayrılmış (allocated)', budget.allocatedGross],
@@ -108,7 +108,7 @@ export default function ReportsPage() {
 
       <Card title="Before / After (əməkdaş üzrə)">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="tbl">
             <thead>
               <tr className="text-left text-xs text-muted-foreground border-b border-border">
                 <th className="px-2 py-2">Əməkdaş</th>

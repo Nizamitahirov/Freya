@@ -39,7 +39,7 @@ function comp(gross: number, meal = 0) {
 
 export const demoCompany: Company = {
   id: COMPANY_ID,
-  name: 'Demo Şirkət MMC',
+  name: 'Databyte',
   country: 'AZ',
   currency: 'AZN',
   fiscalYearStart: 1,

@@ -64,7 +64,7 @@ export default function MarketPage() {
       {rows.length > 0 && (
         <Card title="Market mövqeyi (median-ə görə compa-ratio)">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="tbl">
               <thead>
                 <tr className="text-left text-xs text-muted-foreground border-b border-border">
                   <th className="px-2 py-2">Grade</th>

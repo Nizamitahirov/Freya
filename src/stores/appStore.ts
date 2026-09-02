@@ -259,8 +259,8 @@ export const useAppStore = create<AppState>()(
       resetDemo: () => set({ ...initial, planningItems: [] }),
     }),
     {
-      name: 'freya-demo',
-      version: 2,
+      name: 'freya-databyte',
+      version: 3,
       storage: createJSONStorage(() => localStorage),
       skipHydration: true,
     },

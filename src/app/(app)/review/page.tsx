@@ -114,7 +114,7 @@ export default function ReviewPage() {
 
       <Card className="!p-0">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="tbl">
             <thead>
               <tr className="text-left text-xs text-muted-foreground border-b border-border">
                 {isHR && (
