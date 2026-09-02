@@ -23,8 +23,8 @@
   --color-border: #e7e9f2;
   --color-ring: #5b5bf5;
 
-  --font-sans: 'Montserrat', ui-sans-serif, system-ui, sans-serif;
-  --font-mono: 'Geist Mono', ui-monospace, 'SFMono-Regular', monospace;
+  --font-sans: var(--font-montserrat), 'Montserrat', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), 'Geist Mono', ui-monospace, 'SFMono-Regular', monospace;
 
   --shadow-card: 0 4px 16px -4px rgba(15, 17, 41, 0.08), 0 2px 4px -2px rgba(15, 17, 41, 0.04);
   --shadow-glow: 0 8px 24px -6px rgba(91, 91, 245, 0.35);
